@@ -5,6 +5,41 @@
         <h2 class="mb-0">Tickets</h2>
         <a href="/tickets/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> New Ticket</a>
     </div>
+
+    <form class="card shadow-sm mb-3 p-3" method="get" action="/tickets">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Search</label>
+                <input type="text" name="q" class="form-control" th:value="${q}" placeholder="Title or description">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">Any</option>
+                    <option th:each="s : ${statuses}" th:value="${s}" th:selected="${s}==${statusFilter}" th:text="${s}"></option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Station</label>
+                <select class="form-select" name="stationId">
+                    <option value="">Any</option>
+                    <option th:each="s : ${stations}" th:value="${s.id}" th:selected="${s.id}==${stationId}" th:text="${s.name}"></option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Category</label>
+                <select class="form-select" name="categoryId">
+                    <option value="">Any</option>
+                    <option th:each="c : ${categories}" th:value="${c.id}" th:selected="${c.id}==${categoryId}" th:text="${c.name}"></option>
+                </select>
+            </div>
+        </div>
+        <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Filter</button>
+            <a class="btn btn-outline-secondary" href="/tickets">Reset</a>
+        </div>
+    </form>
+
     <div class="card shadow-sm">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -20,13 +55,19 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="t : ${tickets}">
+                <tr th:each="t : ${ticketPage}">
                     <td th:text="${t.id}"></td>
                     <td th:text="${t.title}"></td>
                     <td th:text="${t.station.name}"></td>
                     <td th:text="${t.issueCategory.name}"></td>
                     <td>
-                        <span class="badge text-bg-secondary" th:text="${t.status}"></span>
+                        <form th:action="@{'/tickets/' + ${t.id} + '/status'}" method="post" class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="redirect" th:value="@{/tickets(page=${ticketPage.number}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">
+                            <select name="status" class="form-select form-select-sm" style="min-width: 140px;">
+                                <option th:each="s : ${statuses}" th:value="${s}" th:selected="${s}==${t.status}" th:text="${s}"></option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" type="submit" title="Update status"><i class="bi bi-check2"></i></button>
+                        </form>
                     </td>
                     <td th:text="${#temporals.format(t.raisingDateTime, 'yyyy-MM-dd HH:mm')}"></td>
                     <td class="text-end">
@@ -38,11 +79,27 @@
                         </form>
                     </td>
                 </tr>
-                <tr th:if="${#lists.isEmpty(tickets)}">
-                    <td colspan="7" class="text-center text-muted">No tickets yet.</td>
+                <tr th:if="${ticketPage.totalElements}==0">
+                    <td colspan="7" class="text-center text-muted">No tickets found.</td>
                 </tr>
                 </tbody>
             </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div>
+                <span th:text="'Page ' + ${ticketPage.number + 1} + ' of ' + ${ticketPage.totalPages}"></span>
+            </div>
+            <nav>
+                <ul class="pagination mb-0">
+                    <li class="page-item" th:classappend="${ticketPage.first} ? 'disabled'">
+                        <a class="page-link" th:href="@{/tickets(page=${ticketPage.number - 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Prev</a>
+                    </li>
+                    <li class="page-item disabled"><a class="page-link" href="#" th:text="${ticketPage.number + 1}"></a></li>
+                    <li class="page-item" th:classappend="${ticketPage.last} ? 'disabled'">
+                        <a class="page-link" th:href="@{/tickets(page=${ticketPage.number + 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Next</a>
+                    </li>
+                </ul>
+            </nav>
         </div>
     </div>
 </section>

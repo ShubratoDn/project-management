@@ -15,7 +15,8 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label">Description</label>
-                        <textarea class="form-control" rows="4" name="description" th:text="*{description}"></textarea>
+                        <input type="hidden" name="description" th:value="*{description}" id="descriptionInput">
+                        <div id="editor" class="form-control" style="height: 220px; overflow:auto;"></div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Station</label>
@@ -50,5 +51,18 @@
     </div>
 </section>
 </html>
+<script th:inline="javascript">
+    document.addEventListener('DOMContentLoaded', function () {
+        var quill = new Quill('#editor', { theme: 'snow' });
+        var hiddenInput = document.getElementById('descriptionInput');
+        if (hiddenInput && hiddenInput.value) {
+            quill.root.innerHTML = hiddenInput.value;
+        }
+        var form = document.querySelector('form');
+        form.addEventListener('submit', function () {
+            hiddenInput.value = quill.root.innerHTML;
+        });
+    });
+    </script>
 
 
