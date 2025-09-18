@@ -71,6 +71,18 @@ public class DashboardController {
             @RequestParam(required = false) Long stationId) {
         return ResponseEntity.ok(analyticsService.byCategory(from, to, stationId));
     }
+
+
+    @GetMapping("/api/by-office-hour")
+    public ResponseEntity<Map<String, Object>> byOfficeHour(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam String officeStart,
+            @RequestParam String officeEnd,
+            @RequestParam(required = false) Long stationId,
+            @RequestParam(required = false) Long categoryId) {
+        return ResponseEntity.ok(analyticsService.byOfficeHour(from, to, officeStart, officeEnd, stationId, categoryId));
+    }
 }
 
 

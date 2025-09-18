@@ -7,6 +7,8 @@
             <i class="bi bi-arrows-fullscreen"></i>
         </button>
         <div class="d-flex gap-2">
+            <input type="time" id="officeStart" class="form-control" value="09:00" title="Office Start Time">
+            <input type="time" id="officeEnd" class="form-control" value="18:00" title="Office End Time">
             <input type="date" id="fromDate" class="form-control">
             <input type="date" id="toDate" class="form-control">
             <select id="granularity" class="form-select">
@@ -99,13 +101,22 @@
                 <div class="card-body"><canvas id="byCategoryChart" height="140"></canvas></div>
             </div>
         </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Supports by Office Hour</span>
+                </div>
+                <div class="card-body"><canvas id="byOfficeHourChart" height="140"></canvas></div>
+            </div>
+        </div>
     </div>
 </section>
+
 </html>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-    (function(){
+    (function () {
         // Fullscreen logic
         function toggleSidebar(hide) {
             const sidebar = document.querySelector('.sidebar');
@@ -131,14 +142,14 @@
             document.body.classList.remove('fullscreen-active');
             toggleSidebar(false);
         }
-        document.addEventListener('DOMContentLoaded', function(){
+        document.addEventListener('DOMContentLoaded', function () {
             const btn = document.getElementById('fullscreenBtn');
             let isFullscreen = false;
-            btn.addEventListener('click', function(){
+            btn.addEventListener('click', function () {
                 if (!isFullscreen) enterFullscreen();
                 else exitFullscreen();
             });
-            document.addEventListener('fullscreenchange', function(){
+            document.addEventListener('fullscreenchange', function () {
                 isFullscreen = !!document.fullscreenElement;
                 if (!isFullscreen) {
                     document.body.classList.remove('fullscreen-active');
@@ -147,34 +158,57 @@
             });
         });
         const lsKey = 'dashFilters';
-        function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
-        function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); d.setHours(0,0,0,0); return d; }
-        function fmt(d){ return d.toISOString().slice(0,10); }
-        function save(){ localStorage.setItem(lsKey, JSON.stringify(getFilters())); }
-        function load(){ try{ return JSON.parse(localStorage.getItem(lsKey)||'{}'); }catch(e){ return {}; } }
-        function getFilters(){ return {
-            from: document.getElementById('fromDate').value,
-            to: document.getElementById('toDate').value,
-            granularity: document.getElementById('granularity').value,
-            stationId: document.getElementById('stationFilter').value,
-            categoryId: document.getElementById('categoryFilter').value
-        }; }
-        function setFilters(f){
-            document.getElementById('fromDate').value = f.from||fmt(daysAgo(30));
-            document.getElementById('toDate').value = f.to||fmt(today());
-            if(f.granularity) document.getElementById('granularity').value = f.granularity;
-            if(f.stationId!==undefined) document.getElementById('stationFilter').value = f.stationId;
-            if(f.categoryId!==undefined) document.getElementById('categoryFilter').value = f.categoryId;
+        function today() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+        function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(0, 0, 0, 0); return d; }
+        function fmt(d) { return d.toISOString().slice(0, 10); }
+        function save() { localStorage.setItem(lsKey, JSON.stringify(getFilters())); }
+        function load() { try { return JSON.parse(localStorage.getItem(lsKey) || '{}'); } catch (e) { return {}; } }
+        function getFilters() {
+            return {
+                from: document.getElementById('fromDate').value,
+                to: document.getElementById('toDate').value,
+                granularity: document.getElementById('granularity').value,
+                stationId: document.getElementById('stationFilter').value,
+                categoryId: document.getElementById('categoryFilter').value
+            };
+        }
+        function setFilters(f) {
+            document.getElementById('fromDate').value = f.from || fmt(daysAgo(30));
+            document.getElementById('toDate').value = f.to || fmt(today());
+            if (f.granularity) document.getElementById('granularity').value = f.granularity;
+            if (f.stationId !== undefined) document.getElementById('stationFilter').value = f.stationId;
+            if (f.categoryId !== undefined) document.getElementById('categoryFilter').value = f.categoryId;
         }
 
         let byDateChart, byStationChart, byCategoryChart;
-        function ensureChart(ctx, cfg){ if(ctx._chart){ ctx._chart.destroy(); } ctx._chart = new Chart(ctx, cfg); return ctx._chart; }
+        function ensureChart(ctx, cfg) { if (ctx._chart) { ctx._chart.destroy(); } ctx._chart = new Chart(ctx, cfg); return ctx._chart; }
 
-        function refresh(){
+        function refresh() {
+            // By Office Hour (only use office hour fields for this chart)
+            if (document.getElementById('officeStart') && document.getElementById('officeEnd')) {
+                const officeStart = document.getElementById('officeStart').value;
+                const officeEnd = document.getElementById('officeEnd').value;
+                // Only pass date, station, category, officeStart, officeEnd
+                const f = getFilters();
+                const officeParams = {
+                    from: f.from,
+                    to: f.to,
+                    stationId: f.stationId,
+                    categoryId: f.categoryId,
+                    officeStart,
+                    officeEnd
+                };
+                $.get('/dashboard/api/by-office-hour', officeParams, function (res) {
+                    const labels = ['Office Hour', 'After Office Hour'];
+                    const data = [res.officeHour || 0, res.afterOfficeHour || 0];
+                    const ctx = document.getElementById('byOfficeHourChart');
+                    ensureChart(ctx, { type: 'pie', data: { labels, datasets: [{ label: 'Supports', data, backgroundColor: ['#0d6efd', '#fd7e14'] }] }, options: { responsive: true } });
+                });
+            }
             const f = getFilters();
             save();
             // Total & Status-wise
-            $.get('/dashboard/api/overview', f, function(res){
+            $.get('/dashboard/api/overview', f, function (res) {
                 $('#totalSupports').text(res.total);
                 const sc = res.statusCounts || {};
                 $('#statusOpen').text(sc.OPEN || 0);
@@ -184,18 +218,18 @@
                 $('#statusClosed').text(sc.CLOSED || 0);
             });
             // By Date
-            $.get('/dashboard/api/by-date', f, function(res){
-                const labels = res.rows.map(r=>r.bucket);
-                const data = res.rows.map(r=>r.cnt);
+            $.get('/dashboard/api/by-date', f, function (res) {
+                const labels = res.rows.map(r => r.bucket);
+                const data = res.rows.map(r => r.cnt);
                 const ctx = document.getElementById('byDateChart');
-                ensureChart(ctx, { type:'line', data:{ labels, datasets:[{ label:'Supports', data, borderColor:'#0d6efd', fill:false }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } } } });
+                ensureChart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Supports', data, borderColor: '#0d6efd', fill: false }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
             });
             // By Station
             // Always fetch all stations, filter client-side for selected station
             const stationFilter = Object.assign({}, f, { stationId: "" });
-            $.get('/dashboard/api/by-station', stationFilter, function(res){
-                let labels = res.rows.map(r=>r.label);
-                let data = res.rows.map(r=>r.cnt);
+            $.get('/dashboard/api/by-station', stationFilter, function (res) {
+                let labels = res.rows.map(r => r.label);
+                let data = res.rows.map(r => r.cnt);
                 const ctx = document.getElementById('byStationChart');
                 if (f.stationId && f.stationId !== "") {
                     // Get selected station name from dropdown
@@ -212,12 +246,12 @@
                         data = [];
                     }
                 }
-                ensureChart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Supports', data, backgroundColor:'#20c997' }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } } } });
+                ensureChart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Supports', data, backgroundColor: '#20c997' }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
             });
             // By Category
-            $.get('/dashboard/api/by-category', f, function(res){
-                const labels = res.rows.map(r=>r.label);
-                const data = res.rows.map(r=>r.cnt);
+            $.get('/dashboard/api/by-category', f, function (res) {
+                const labels = res.rows.map(r => r.label);
+                const data = res.rows.map(r => r.cnt);
                 const total = data.reduce((a, b) => a + b, 0);
                 const ctx = document.getElementById('byCategoryChart');
                 ensureChart(ctx, {
@@ -226,7 +260,7 @@
                         labels,
                         datasets: [{
                             data,
-                            backgroundColor: ['#0dcaf0','#6f42c1','#fd7e14','#dc3545','#198754','#0d6efd','#20c997'],
+                            backgroundColor: ['#0dcaf0', '#6f42c1', '#fd7e14', '#dc3545', '#198754', '#0d6efd', '#20c997'],
                             label: 'Supports'
                         }]
                     },
@@ -235,23 +269,23 @@
                         plugins: {
                             tooltip: {
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         const idx = context.dataIndex;
                                         const val = context.dataset.data[idx];
-                                        const percent = total ? ((val/total)*100).toFixed(1) : 0;
+                                        const percent = total ? ((val / total) * 100).toFixed(1) : 0;
                                         return `${context.label}: ${val} (${percent}%)`;
                                     }
                                 }
                             },
                             legend: {
                                 labels: {
-                                    generateLabels: function(chart) {
+                                    generateLabels: function (chart) {
                                         const data = chart.data;
                                         if (data.labels.length && data.datasets.length) {
                                             const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
                                             return data.labels.map((label, i) => {
                                                 const value = data.datasets[0].data[i];
-                                                const percent = total ? ((value/total)*100).toFixed(1) : 0;
+                                                const percent = total ? ((value / total) * 100).toFixed(1) : 0;
                                                 return {
                                                     text: `${label} (${percent}%)`,
                                                     fillStyle: data.datasets[0].backgroundColor[i],
@@ -270,13 +304,17 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', function(){
+        document.addEventListener('DOMContentLoaded', function () {
             setFilters(load());
-            ['fromDate','toDate','granularity','stationFilter','categoryFilter'].forEach(id=>{
+            ['fromDate', 'toDate', 'granularity', 'stationFilter', 'categoryFilter'].forEach(id => {
                 document.getElementById(id).addEventListener('change', refresh);
+            });
+            // Only add office hour listeners if present
+            ['officeStart', 'officeEnd'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', refresh);
             });
             refresh();
         });
     })();
 </script>
-

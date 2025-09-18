@@ -132,6 +132,41 @@ public class TicketAnalyticsService {
             if (categoryId != null) sql.append(" and t.issue_category_id = ?");
         }
     }
+
+    public Map<String, Object> byOfficeHour(LocalDate from, LocalDate to, String officeStart, String officeEnd, Long stationId, Long categoryId) {
+        // officeStart and officeEnd are in HH:mm format
+        StringBuilder baseSql = new StringBuilder("from tickets t where t.raising_date_time between ? and ?");
+        List<Object> params = new java.util.ArrayList<>();
+        params.add(from.atStartOfDay());
+        params.add(to.atTime(LocalTime.MAX));
+        if (stationId != null) {
+            baseSql.append(" and t.station_id = ?");
+            params.add(stationId);
+        }
+        if (categoryId != null) {
+            baseSql.append(" and t.issue_category_id = ?");
+            params.add(categoryId);
+        }
+
+        // Office hour: tickets where time(raising_date_time) between officeStart and officeEnd
+        String officeHourSql = "select count(*) " + baseSql.toString() + " and time(t.raising_date_time) >= ? and time(t.raising_date_time) < ?";
+        List<Object> officeParams = new java.util.ArrayList<>(params);
+        officeParams.add(officeStart);
+        officeParams.add(officeEnd);
+        Long officeHour = jdbcTemplate.queryForObject(officeHourSql, officeParams.toArray(), Long.class);
+
+        // After office hour: tickets where time(raising_date_time) < officeStart or >= officeEnd
+        String afterOfficeSql = "select count(*) " + baseSql.toString() + " and (time(t.raising_date_time) < ? or time(t.raising_date_time) >= ?)";
+        List<Object> afterParams = new java.util.ArrayList<>(params);
+        afterParams.add(officeStart);
+        afterParams.add(officeEnd);
+        Long afterOfficeHour = jdbcTemplate.queryForObject(afterOfficeSql, afterParams.toArray(), Long.class);
+
+        Map<String, Object> m = new HashMap<>();
+        m.put("officeHour", officeHour);
+        m.put("afterOfficeHour", afterOfficeHour);
+        return m;
+    }
 }
 
 
