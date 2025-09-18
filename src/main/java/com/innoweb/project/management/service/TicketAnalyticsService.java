@@ -21,25 +21,39 @@ public class TicketAnalyticsService {
     }
 
     public Map<String, Object> overview(LocalDate from, LocalDate to, Long stationId, Long categoryId) {
-        StringBuilder sql = new StringBuilder(
-                "select count(*) from tickets t where t.raising_date_time between ? and ?"
+        StringBuilder baseSql = new StringBuilder(
+                "from tickets t where t.raising_date_time between ? and ?"
         );
         List<Object> params = new java.util.ArrayList<>();
         params.add(from.atStartOfDay());
         params.add(to.atTime(LocalTime.MAX));
 
         if (stationId != null) {
-            sql.append(" and t.station_id = ?");
+            baseSql.append(" and t.station_id = ?");
             params.add(stationId);
         }
         if (categoryId != null) {
-            sql.append(" and t.issue_category_id = ?");
+            baseSql.append(" and t.issue_category_id = ?");
             params.add(categoryId);
         }
 
-        Long total = jdbcTemplate.queryForObject(sql.toString(), params.toArray(), Long.class);
+        // Total count
+        String totalSql = "select count(*) " + baseSql.toString();
+        Long total = jdbcTemplate.queryForObject(totalSql, params.toArray(), Long.class);
+
+        // Status-wise counts
+        String statusSql = "select t.status, count(*) as cnt " + baseSql.toString() + " group by t.status";
+        List<Map<String, Object>> statusRows = jdbcTemplate.queryForList(statusSql, params.toArray());
+        Map<String, Long> statusCounts = new HashMap<>();
+        for (Map<String, Object> row : statusRows) {
+            String status = String.valueOf(row.get("status"));
+            Long cnt = ((Number)row.get("cnt")).longValue();
+            statusCounts.put(status, cnt);
+        }
+
         Map<String, Object> m = new HashMap<>();
         m.put("total", total);
+        m.put("statusCounts", statusCounts);
         return m;
     }
 

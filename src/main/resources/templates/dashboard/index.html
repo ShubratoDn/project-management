@@ -23,12 +23,53 @@
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
+
+    <div class="row g-3" id="supportSummaryRow">
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-primary text-primary bg-light h-100">
+                <div class="card-body text-center">
                     <h6 class="text-muted">Total Supports</h6>
-                    <div class="display-6" id="totalSupports">0</div>
+                    <div class="display-6 fw-bold" id="totalSupports">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-info text-info bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Open</h6>
+                    <div class="display-6 fw-bold" id="statusOpen">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-warning text-warning bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">In Progress</h6>
+                    <div class="display-6 fw-bold" id="statusInProgress">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-secondary text-secondary bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">On Hold</h6>
+                    <div class="display-6 fw-bold" id="statusOnHold">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-success text-success bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Resolved</h6>
+                    <div class="display-6 fw-bold" id="statusResolved">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-6 mb-2">
+            <div class="card shadow-sm border-dark text-dark bg-light h-100">
+                <div class="card-body text-center">
+                    <h6 class="text-muted">Closed</h6>
+                    <div class="display-6 fw-bold" id="statusClosed">0</div>
                 </div>
             </div>
         </div>
@@ -89,8 +130,16 @@
         function refresh(){
             const f = getFilters();
             save();
-            // Total
-            $.get('/dashboard/api/overview', f, function(res){ $('#totalSupports').text(res.total); });
+            // Total & Status-wise
+            $.get('/dashboard/api/overview', f, function(res){
+                $('#totalSupports').text(res.total);
+                const sc = res.statusCounts || {};
+                $('#statusOpen').text(sc.OPEN || 0);
+                $('#statusInProgress').text(sc.IN_PROGRESS || 0);
+                $('#statusOnHold').text(sc.ON_HOLD || 0);
+                $('#statusResolved').text(sc.RESOLVED || 0);
+                $('#statusClosed').text(sc.CLOSED || 0);
+            });
             // By Date
             $.get('/dashboard/api/by-date', f, function(res){
                 const labels = res.rows.map(r=>r.bucket);
@@ -100,10 +149,23 @@
             });
             // By Station
             $.get('/dashboard/api/by-station', f, function(res){
-                const labels = res.rows.map(r=>r.label);
-                const data = res.rows.map(r=>r.cnt);
+                let labels = res.rows.map(r=>r.label);
+                let data = res.rows.map(r=>r.cnt);
                 const ctx = document.getElementById('byStationChart');
-                ensureChart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Supports', data, backgroundColor:'#20c997' }] }, options:{ indexAxis:'y', responsive:true, scales:{ x:{ beginAtZero:true } } } });
+                // If a specific station is selected, show only that station's data
+                if (f.stationId && f.stationId !== "") {
+                    // Try to find the selected station in the result
+                    const idx = labels.findIndex((l, i) => String(res.rows[i].stationId || res.rows[i].id || "") === f.stationId);
+                    if (idx !== -1) {
+                        labels = [labels[idx]];
+                        data = [data[idx]];
+                    } else if (labels.length > 0) {
+                        // fallback: just show the first if not found
+                        labels = [labels[0]];
+                        data = [data[0]];
+                    }
+                }
+                ensureChart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Supports', data, backgroundColor:'#20c997' }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } } } });
             });
             // By Category
             $.get('/dashboard/api/by-category', f, function(res){
