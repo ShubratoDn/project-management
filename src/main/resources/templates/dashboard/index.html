@@ -3,6 +3,9 @@
 <section>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0">Dashboard</h2>
+        <button id="fullscreenBtn" class="btn btn-outline-secondary ms-2" title="Full Screen" type="button">
+            <i class="bi bi-arrows-fullscreen"></i>
+        </button>
         <div class="d-flex gap-2">
             <input type="date" id="fromDate" class="form-control">
             <input type="date" id="toDate" class="form-control">
@@ -103,6 +106,46 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     (function(){
+        // Fullscreen logic
+        function toggleSidebar(hide) {
+            const sidebar = document.querySelector('.sidebar');
+            if (!sidebar) return;
+            if (hide) {
+                sidebar.style.display = 'none';
+            } else {
+                sidebar.style.display = '';
+            }
+        }
+        function enterFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+            document.body.classList.add('fullscreen-active');
+            toggleSidebar(true);
+        }
+        function exitFullscreen() {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+            document.body.classList.remove('fullscreen-active');
+            toggleSidebar(false);
+        }
+        document.addEventListener('DOMContentLoaded', function(){
+            const btn = document.getElementById('fullscreenBtn');
+            let isFullscreen = false;
+            btn.addEventListener('click', function(){
+                if (!isFullscreen) enterFullscreen();
+                else exitFullscreen();
+            });
+            document.addEventListener('fullscreenchange', function(){
+                isFullscreen = !!document.fullscreenElement;
+                if (!isFullscreen) {
+                    document.body.classList.remove('fullscreen-active');
+                    toggleSidebar(false);
+                }
+            });
+        });
         const lsKey = 'dashFilters';
         function today(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
         function daysAgo(n){ const d=new Date(); d.setDate(d.getDate()-n); d.setHours(0,0,0,0); return d; }
@@ -148,21 +191,25 @@
                 ensureChart(ctx, { type:'line', data:{ labels, datasets:[{ label:'Supports', data, borderColor:'#0d6efd', fill:false }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } } } });
             });
             // By Station
-            $.get('/dashboard/api/by-station', f, function(res){
+            // Always fetch all stations, filter client-side for selected station
+            const stationFilter = Object.assign({}, f, { stationId: "" });
+            $.get('/dashboard/api/by-station', stationFilter, function(res){
                 let labels = res.rows.map(r=>r.label);
                 let data = res.rows.map(r=>r.cnt);
                 const ctx = document.getElementById('byStationChart');
-                // If a specific station is selected, show only that station's data
                 if (f.stationId && f.stationId !== "") {
-                    // Try to find the selected station in the result
-                    const idx = labels.findIndex((l, i) => String(res.rows[i].stationId || res.rows[i].id || "") === f.stationId);
+                    // Get selected station name from dropdown
+                    const select = document.getElementById('stationFilter');
+                    const selectedOption = select.options[select.selectedIndex];
+                    const selectedName = selectedOption ? selectedOption.text : "";
+                    // Find the row with matching label
+                    const idx = labels.findIndex(l => l === selectedName);
                     if (idx !== -1) {
                         labels = [labels[idx]];
                         data = [data[idx]];
-                    } else if (labels.length > 0) {
-                        // fallback: just show the first if not found
-                        labels = [labels[0]];
-                        data = [data[0]];
+                    } else {
+                        labels = [];
+                        data = [];
                     }
                 }
                 ensureChart(ctx, { type:'bar', data:{ labels, datasets:[{ label:'Supports', data, backgroundColor:'#20c997' }] }, options:{ responsive:true, scales:{ y:{ beginAtZero:true } } } });
@@ -171,8 +218,55 @@
             $.get('/dashboard/api/by-category', f, function(res){
                 const labels = res.rows.map(r=>r.label);
                 const data = res.rows.map(r=>r.cnt);
+                const total = data.reduce((a, b) => a + b, 0);
                 const ctx = document.getElementById('byCategoryChart');
-                ensureChart(ctx, { type:'doughnut', data:{ labels, datasets:[{ data, backgroundColor:['#0dcaf0','#6f42c1','#fd7e14','#dc3545','#198754','#0d6efd','#20c997'] }] }, options:{ responsive:true } });
+                ensureChart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels,
+                        datasets: [{
+                            data,
+                            backgroundColor: ['#0dcaf0','#6f42c1','#fd7e14','#dc3545','#198754','#0d6efd','#20c997'],
+                            label: 'Supports'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const idx = context.dataIndex;
+                                        const val = context.dataset.data[idx];
+                                        const percent = total ? ((val/total)*100).toFixed(1) : 0;
+                                        return `${context.label}: ${val} (${percent}%)`;
+                                    }
+                                }
+                            },
+                            legend: {
+                                labels: {
+                                    generateLabels: function(chart) {
+                                        const data = chart.data;
+                                        if (data.labels.length && data.datasets.length) {
+                                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                            return data.labels.map((label, i) => {
+                                                const value = data.datasets[0].data[i];
+                                                const percent = total ? ((value/total)*100).toFixed(1) : 0;
+                                                return {
+                                                    text: `${label} (${percent}%)`,
+                                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                                    strokeStyle: data.datasets[0].backgroundColor[i],
+                                                    index: i
+                                                };
+                                            });
+                                        }
+                                        return [];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
             });
         }
 
