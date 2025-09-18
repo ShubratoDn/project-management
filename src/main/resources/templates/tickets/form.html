@@ -20,15 +20,18 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Station</label>
-                        <select class="form-select" name="station.id" required>
+                        <select class="form-select select2" name="station.id" required>
                             <option th:each="s : ${stations}" th:value="${s.id}" th:selected="*{station}!=null ? ${s.id}==*{station.id} : false" th:text="${s.name}"></option>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Category</label>
-                        <select class="form-select" name="issueCategory.id" required>
-                            <option th:each="c : ${categories}" th:value="${c.id}" th:selected="*{issueCategory}!=null ? ${c.id}==*{issueCategory.id} : false" th:text="${c.name}"></option>
-                        </select>
+                        <div class="d-flex gap-2">
+                            <select class="form-select select2 flex-grow-1" name="issueCategory.id" id="categorySelect" required>
+                                <option th:each="c : ${categories}" th:value="${c.id}" th:selected="*{issueCategory}!=null ? ${c.id}==*{issueCategory.id} : false" th:text="${c.name}"></option>
+                            </select>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addCategoryModal"><i class="bi bi-plus-lg"></i></button>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Status</label>
@@ -62,7 +65,54 @@
         form.addEventListener('submit', function () {
             hiddenInput.value = quill.root.innerHTML;
         });
+        // Initialize Select2
+        $('.select2').select2({ width: '100%' });
+
+        // Add Category modal submit
+        $('#saveNewCategory').on('click', function(){
+            const name = $('#newCategoryName').val();
+            const description = $('#newCategoryDescription').val();
+            if(!name) return;
+            $.ajax({
+                url: '/categories/ajax',
+                method: 'POST',
+                data: { name: name, description: description },
+                success: function(res){
+                    const id = res.id;
+                    const nm = res.name;
+                    const newOption = new Option(nm, id, true, true);
+                    $('#categorySelect').append(newOption).trigger('change');
+                    $('#addCategoryModal').modal('hide');
+                }
+            });
+        });
     });
     </script>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" id="newCategoryName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <input type="text" id="newCategoryDescription" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="saveNewCategory" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 

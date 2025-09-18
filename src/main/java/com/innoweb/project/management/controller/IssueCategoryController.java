@@ -6,6 +6,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 @Controller
 @RequestMapping("/categories")
@@ -31,6 +32,18 @@ public class IssueCategoryController {
         }
         issueCategoryRepository.save(category);
         return "redirect:/categories";
+    }
+
+    @PostMapping(path = "/ajax")
+    @ResponseBody
+    public ResponseEntity<?> createAjax(@RequestParam("name") String name,
+                                        @RequestParam(value = "description", required = false) String description) {
+        IssueCategory category = IssueCategory.builder().name(name).description(description).build();
+        IssueCategory savedCategory  = issueCategoryRepository.save(category);
+        return ResponseEntity.ok().body(new java.util.HashMap<String, Object>() {{
+            put("id", savedCategory.getId());
+            put("name", savedCategory.getName());
+        }});
     }
 
     @GetMapping("/{id}/edit")

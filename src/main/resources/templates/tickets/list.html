@@ -61,15 +61,9 @@
                     <td th:text="${t.station.name}"></td>
                     <td th:text="${t.issueCategory.name}"></td>
                     <td>
-                        <form th:action="@{'/tickets/' + ${t.id} + '/status'}" method="post" class="d-flex align-items-center gap-2">
-                            <input type="hidden" name="redirect" th:value="@{/tickets(page=${ticketPage.number}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">
-                            <select name="status" class="form-select form-select-sm" style="min-width: 140px;">
-                                <option th:each="s : ${statuses}" th:value="${s}" th:selected="${s}==${t.status}" th:text="${s}"></option>
-                            </select>
-                            <button class="btn btn-sm btn-outline-primary" type="submit" title="Update status"><i class="bi bi-check2"></i></button>
-                        </form>
+                        <span class="badge rounded-pill bg-secondary status-badge" th:data-id="${t.id}" th:text="${t.status}" style="cursor: pointer; user-select: none;" title="Double-click to change"></span>
                     </td>
-                    <td th:text="${#temporals.format(t.raisingDateTime, 'yyyy-MM-dd HH:mm')}"></td>
+                    <td th:text="${#temporals.format(t.raisingDateTime, 'dd-MMM-yyyy hh:mm a')}"></td>
                     <td class="text-end">
                         <a th:href="@{'/tickets/' + ${t.id} + '/edit'}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
                         <form th:action="@{'/tickets/' + ${t.id} + '/delete'}" method="post" class="d-inline">
@@ -102,7 +96,99 @@
             </nav>
         </div>
     </div>
+
+    <!-- Status Modal -->
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <select id="statusSelect" class="form-select">
+                        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"></option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="saveStatusBtn" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </section>
 </html>
+
+<script th:inline="javascript">
+    (function(){
+        const filters = ['q','status','stationId','categoryId','size'];
+
+        // Persist filters in localStorage and auto-submit on change/typing
+        function applySavedFilters(){
+            try{
+                const saved = JSON.parse(localStorage.getItem('ticketFilters')||'{}');
+                filters.forEach(k=>{
+                    const el = document.querySelector('[name="'+k+'"]');
+                    if(el && saved[k]!==undefined && saved[k]!==null && saved[k]!=='' ){
+                        el.value = saved[k];
+                    }
+                });
+            }catch(e){}
+        }
+        function saveFilters(){
+            const data = {};
+            filters.forEach(k=>{
+                const el = document.querySelector('[name="'+k+'"]');
+                if(el) data[k] = el.value;
+            });
+            localStorage.setItem('ticketFilters', JSON.stringify(data));
+        }
+        function autoFilter(){
+            saveFilters();
+            const form = document.querySelector('form[action="/tickets"]') || document.querySelector('form[method="get"]');
+            if(form){ form.requestSubmit(); }
+        }
+
+        document.addEventListener('DOMContentLoaded', function(){
+            applySavedFilters();
+            const q = document.querySelector('[name="q"]');
+            if(q){ q.addEventListener('keyup', function(){ clearTimeout(q._t); q._t = setTimeout(autoFilter, 300); }); }
+            ['status','stationId','categoryId','size'].forEach(k=>{
+                const el = document.querySelector('[name="'+k+'"]');
+                if(el){ el.addEventListener('change', autoFilter); }
+            });
+
+            // Status modal logic with AJAX
+            let currentId = null;
+            const modalEl = document.getElementById('statusModal');
+            const modal = new bootstrap.Modal(modalEl);
+            const statusSelect = document.getElementById('statusSelect');
+            const saveBtn = document.getElementById('saveStatusBtn');
+
+            $(document).on('dblclick', '.status-badge', function(){
+                currentId = this.getAttribute('data-id');
+                const currentText = this.textContent.trim();
+                if(statusSelect){
+                    for (const opt of statusSelect.options){
+                        opt.selected = (opt.value === currentText);
+                    }
+                }
+                modal.show();
+            });
+
+            saveBtn && saveBtn.addEventListener('click', function(){
+                if(!currentId) return;
+                const newStatus = statusSelect.value;
+                $.post('/tickets/' + currentId + '/status', { status: newStatus, ajax: true })
+                 .done(function(){
+                    const badge = document.querySelector('.status-badge[data-id="'+currentId+'"]');
+                    if(badge){ badge.textContent = newStatus; }
+                    modal.hide();
+                 });
+            });
+        });
+    })();
+    </script>
 
 

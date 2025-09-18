@@ -14,6 +14,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -146,6 +147,15 @@ public class TicketController {
         ticket.setStatus(status);
         ticketRepository.save(ticket);
         return (redirect != null && !redirect.isBlank()) ? "redirect:" + redirect : "redirect:/tickets";
+    }
+
+    @PostMapping(path = "/{id}/status", params = "ajax=true")
+    @ResponseBody
+    public ResponseEntity<?> updateStatusAjax(@PathVariable Long id, @RequestParam("status") TicketStatus status) {
+        Ticket ticket = ticketRepository.findById(id).orElseThrow();
+        ticket.setStatus(status);
+        ticketRepository.save(ticket);
+        return ResponseEntity.ok().body(ticket.getStatus());
     }
 }
 
