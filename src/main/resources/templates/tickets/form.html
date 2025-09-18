@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section}, ${ticket.id}!=null?'Edit Ticket':'New Ticket', 'tickets')}">
+<section>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form th:action="${ticket.id} != null ? '/tickets/' + ${ticket.id} : '/tickets'" method="post" th:object="${ticket}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" name="title" th:value="*{title}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Reporter</label>
+                        <input type="text" class="form-control" name="reporterName" th:value="*{reporterName}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" rows="4" name="description" th:text="*{description}"></textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Station</label>
+                        <select class="form-select" name="station.id" required>
+                            <option th:each="s : ${stations}" th:value="${s.id}" th:selected="*{station}!=null ? ${s.id}==*{station.id} : false" th:text="${s.name}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" name="issueCategory.id" required>
+                            <option th:each="c : ${categories}" th:value="${c.id}" th:selected="*{issueCategory}!=null ? ${c.id}==*{issueCategory.id} : false" th:text="${c.name}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status" required>
+                            <option th:each="st : ${statuses}" th:value="${st}" th:selected="${st}==*{status}" th:text="${st}"></option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Raising Date Time</label>
+                        <input type="datetime-local" class="form-control" name="raisingDateTime"
+                               th:value="${#temporals.format(ticket.raisingDateTime, 'yyyy-MM-dd''T''HH:mm')}">
+                    </div>
+                </div>
+                <div class="mt-4 d-flex gap-2">
+                    <a href="/tickets" class="btn btn-outline-secondary">Back</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</section>
+</html>
+
+

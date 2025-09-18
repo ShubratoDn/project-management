@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section}, 'Stations', 'stations')}">
+<section>
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Location</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="s : ${stations}">
+                            <td th:text="${s.id}"></td>
+                            <td th:text="${s.name}"></td>
+                            <td th:text="${s.location}"></td>
+                            <td class="text-end">
+                                <a th:href="@{'/stations/' + ${s.id} + '/edit'}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                                <form th:action="@{'/stations/' + ${s.id} + '/delete'}" method="post" class="d-inline">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete station?')"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(stations)}">
+                            <td colspan="4" class="text-center text-muted">No stations yet.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Add Station</h5>
+                    <form action="/stations" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <input type="text" class="form-control" name="location">
+                        </div>
+                        <button class="btn btn-primary" type="submit">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</html>
+
+

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout :: layout(~{::section}, 'Edit Station', 'stations')}">
+<section>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form th:action="@{'/stations/' + ${station.id}}" method="post">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" th:value="${station.name}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Location</label>
+                        <input type="text" class="form-control" name="location" th:value="${station.location}">
+                    </div>
+                </div>
+                <div class="mt-4 d-flex gap-2">
+                    <a href="/stations" class="btn btn-outline-secondary">Back</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+</section>
+</html>
+
+
