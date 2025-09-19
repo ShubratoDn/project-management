@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="${message.subject}">Email</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.0/css/bootstrap.min.css}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+<div class="container py-4">
+    <a class="btn btn-link" href="/emails">← Back</a>
+    <h3 class="mt-3" th:text="${message.subject}">Subject</h3>
+    <div class="text-muted mb-2">
+        <span th:text="${message.from != null && message.from.emailAddress != null ? message.from.emailAddress.address : ''}">from</span>
+        ·
+        <span th:text="${#temporals.format(message.receivedDateTime, 'yyyy-MM-dd HH:mm')}">date</span>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <div th:utext="${message.body != null ? message.body.content : ''}"></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
+
