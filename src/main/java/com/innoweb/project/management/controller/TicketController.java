@@ -37,13 +37,15 @@ public class TicketController {
 
     @GetMapping
     public String list(
-            @RequestParam(value = "q", required = false) String q,
-            @RequestParam(value = "status", required = false) TicketStatus status,
-            @RequestParam(value = "stationId", required = false) Long stationId,
-            @RequestParam(value = "categoryId", required = false) Long categoryId,
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size,
-            Model model) {
+        @RequestParam(value = "q", required = false) String q,
+        @RequestParam(value = "status", required = false) java.util.List<TicketStatus> status,
+        @RequestParam(value = "stationId", required = false) java.util.List<Long> stationId,
+        @RequestParam(value = "categoryId", required = false) java.util.List<Long> categoryId,
+        @RequestParam(value = "orderBy", defaultValue = "raisingDateTime") String orderBy,
+        @RequestParam(value = "orderDir", defaultValue = "desc") String orderDir,
+        @RequestParam(value = "page", defaultValue = "0") int page,
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        Model model) {
 
         Specification<Ticket> spec = Specification.where(null);
         if (q != null && !q.isBlank()) {
@@ -53,24 +55,29 @@ public class TicketController {
                     cb.like(cb.lower(root.get("description")), like)
             ));
         }
-        if (status != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.get("status"), status));
+        if (status != null && !status.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.get("status").in(status));
         }
-        if (stationId != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.join("station").get("id"), stationId));
+        if (stationId != null && !stationId.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.join("station").get("id").in(stationId));
         }
-        if (categoryId != null) {
-            spec = spec.and((root, cq, cb) -> cb.equal(root.join("issueCategory").get("id"), categoryId));
+        if (categoryId != null && !categoryId.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.join("issueCategory").get("id").in(categoryId));
         }
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "raisingDateTime"));
+        Sort.Direction direction = "asc".equalsIgnoreCase(orderDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = (orderBy == null || orderBy.isBlank()) ? "raisingDateTime" : orderBy;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
         Page<Ticket> ticketPage = (spec == null) ? ticketRepository.findAll(pageable) : ticketRepository.findAll(spec, pageable);
 
         model.addAttribute("ticketPage", ticketPage);
         model.addAttribute("q", q);
-        model.addAttribute("statusFilter", status);
-        model.addAttribute("stationId", stationId);
-        model.addAttribute("categoryId", categoryId);
+    model.addAttribute("statusFilter", status);
+    model.addAttribute("stationId", stationId);
+    model.addAttribute("categoryId", categoryId);
+        model.addAttribute("orderBy", orderBy);
+        model.addAttribute("orderDir", orderDir);
+        model.addAttribute("size", size);
         model.addAttribute("stations", stationRepository.findAll());
         model.addAttribute("categories", issueCategoryRepository.findAll());
         model.addAttribute("statuses", TicketStatus.values());
@@ -156,6 +163,55 @@ public class TicketController {
         ticket.setStatus(status);
         ticketRepository.save(ticket);
         return ResponseEntity.ok().body(ticket.getStatus());
+    }
+
+    /**
+     * AJAX endpoint for ticket table and pagination fragment
+     */
+    @GetMapping("/fragment")
+    public String listFragment(
+        @RequestParam(value = "q", required = false) String q,
+        @RequestParam(value = "status", required = false) java.util.List<TicketStatus> status,
+        @RequestParam(value = "stationId", required = false) java.util.List<Long> stationId,
+        @RequestParam(value = "categoryId", required = false) java.util.List<Long> categoryId,
+        @RequestParam(value = "orderBy", defaultValue = "raisingDateTime") String orderBy,
+        @RequestParam(value = "orderDir", defaultValue = "desc") String orderDir,
+        @RequestParam(value = "page", defaultValue = "0") int page,
+        @RequestParam(value = "size", defaultValue = "10") int size,
+        Model model) {
+        Specification<Ticket> spec = Specification.where(null);
+        if (q != null && !q.isBlank()) {
+            String like = "%" + q.trim().toLowerCase() + "%";
+            spec = spec.and((root, cq, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("title")), like),
+                    cb.like(cb.lower(root.get("description")), like)
+            ));
+        }
+        if (status != null && !status.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.get("status").in(status));
+        }
+        if (stationId != null && !stationId.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.join("station").get("id").in(stationId));
+        }
+        if (categoryId != null && !categoryId.isEmpty()) {
+            spec = spec.and((root, cq, cb) -> root.join("issueCategory").get("id").in(categoryId));
+        }
+        Sort.Direction direction = "asc".equalsIgnoreCase(orderDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = (orderBy == null || orderBy.isBlank()) ? "raisingDateTime" : orderBy;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+        Page<Ticket> ticketPage = (spec == null) ? ticketRepository.findAll(pageable) : ticketRepository.findAll(spec, pageable);
+        model.addAttribute("ticketPage", ticketPage);
+        model.addAttribute("q", q);
+        model.addAttribute("statusFilter", status);
+        model.addAttribute("stationId", stationId);
+        model.addAttribute("categoryId", categoryId);
+        model.addAttribute("orderBy", orderBy);
+        model.addAttribute("orderDir", orderDir);
+        model.addAttribute("size", size);
+        model.addAttribute("stations", stationRepository.findAll());
+        model.addAttribute("categories", issueCategoryRepository.findAll());
+        model.addAttribute("statuses", TicketStatus.values());
+        return "tickets/list :: ticketTableFragment";
     }
 }
 

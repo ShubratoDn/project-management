@@ -8,29 +8,51 @@
 
     <form class="card shadow-sm mb-3 p-3" method="get" action="/tickets">
         <div class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Search</label>
                 <input type="text" name="q" class="form-control" th:value="${q}" placeholder="Title or description">
             </div>
             <div class="col-md-2">
                 <label class="form-label">Status</label>
-                <select class="form-select" name="status">
-                    <option value="">Any</option>
-                    <option th:each="s : ${statuses}" th:value="${s}" th:selected="${s}==${statusFilter}" th:text="${s}"></option>
+                <select class="form-select select2" name="status" multiple="multiple" data-placeholder="Any">
+                    <option th:each="s : ${statuses}" th:value="${s}" th:selected="${statusFilter != null and #lists.contains(statusFilter, s)}" th:text="${s}"></option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Station</label>
-                <select class="form-select" name="stationId">
-                    <option value="">Any</option>
-                    <option th:each="s : ${stations}" th:value="${s.id}" th:selected="${s.id}==${stationId}" th:text="${s.name}"></option>
+                <select class="form-select select2" name="stationId" multiple="multiple" data-placeholder="Any">
+                    <option th:each="s : ${stations}" th:value="${s.id}" th:selected="${stationId != null and #lists.contains(stationId, s.id)}" th:text="${s.name}"></option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Category</label>
-                <select class="form-select" name="categoryId">
-                    <option value="">Any</option>
-                    <option th:each="c : ${categories}" th:value="${c.id}" th:selected="${c.id}==${categoryId}" th:text="${c.name}"></option>
+                <select class="form-select select2" name="categoryId" multiple="multiple" data-placeholder="Any">
+                    <option th:each="c : ${categories}" th:value="${c.id}" th:selected="${categoryId != null and #lists.contains(categoryId, c.id)}" th:text="${c.name}"></option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Order By</label>
+                <select class="form-select" name="orderBy">
+                    <option value="raisingDateTime" th:selected="${orderBy}=='raisingDateTime'">Raised</option>
+                    <option value="id" th:selected="${orderBy}=='id'">ID</option>
+                    <option value="title" th:selected="${orderBy}=='title'">Title</option>
+                    <option value="status" th:selected="${orderBy}=='status'">Status</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Dir</label>
+                <select class="form-select" name="orderDir">
+                    <option value="desc" th:selected="${orderDir}=='desc'">Desc</option>
+                    <option value="asc" th:selected="${orderDir}=='asc'">Asc</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Rows</label>
+                <select class="form-select" name="size">
+                    <option value="10" th:selected="${size}==10">10</option>
+                    <option value="20" th:selected="${size}==20">20</option>
+                    <option value="50" th:selected="${size}==50">50</option>
+                    <option value="100" th:selected="${size}==100">100</option>
                 </select>
             </div>
         </div>
@@ -40,60 +62,62 @@
         </div>
     </form>
 
-    <div class="card shadow-sm">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                <tr>
-                    <th>ID</th>
-                    <th>Title</th>
-                    <th>Station</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Raised</th>
-                    <th></th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="t : ${ticketPage}">
-                    <td th:text="${t.id}"></td>
-                    <td th:text="${t.title}"></td>
-                    <td th:text="${t.station.name}"></td>
-                    <td th:text="${t.issueCategory.name}"></td>
-                    <td>
-                        <span class="badge rounded-pill bg-secondary status-badge" th:data-id="${t.id}" th:text="${t.status}" style="cursor: pointer; user-select: none;" title="Double-click to change"></span>
-                    </td>
-                    <td th:text="${#temporals.format(t.raisingDateTime, 'dd-MMM-yyyy hh:mm a')}"></td>
-                    <td class="text-end">
-                        <a th:href="@{'/tickets/' + ${t.id} + '/edit'}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
-                        <form th:action="@{'/tickets/' + ${t.id} + '/delete'}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete ticket?')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                <tr th:if="${ticketPage.totalElements}==0">
-                    <td colspan="7" class="text-center text-muted">No tickets found.</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="card-footer d-flex justify-content-between align-items-center">
-            <div>
-                <span th:text="'Page ' + ${ticketPage.number + 1} + ' of ' + ${ticketPage.totalPages}"></span>
+    <div id="ticket-table-container" th:fragment="ticketTableFragment">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Station</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Raised</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="t : ${ticketPage}">
+                        <td th:text="${t.id}"></td>
+                        <td th:text="${t.title}"></td>
+                        <td th:text="${t.station.name}"></td>
+                        <td th:text="${t.issueCategory.name}"></td>
+                        <td>
+                            <span class="badge rounded-pill bg-secondary status-badge" th:data-id="${t.id}" th:text="${t.status}" style="cursor: pointer; user-select: none;" title="Double-click to change"></span>
+                        </td>
+                        <td th:text="${#temporals.format(t.raisingDateTime, 'dd-MMM-yyyy hh:mm a')}"></td>
+                        <td class="text-end">
+                            <a th:href="@{'/tickets/' + ${t.id} + '/edit'}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                            <form th:action="@{'/tickets/' + ${t.id} + '/delete'}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete ticket?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    <tr th:if="${ticketPage.totalElements}==0">
+                        <td colspan="7" class="text-center text-muted">No tickets found.</td>
+                    </tr>
+                    </tbody>
+                </table>
             </div>
-            <nav>
-                <ul class="pagination mb-0">
-                    <li class="page-item" th:classappend="${ticketPage.first} ? 'disabled'">
-                        <a class="page-link" th:href="@{/tickets(page=${ticketPage.number - 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Prev</a>
-                    </li>
-                    <li class="page-item disabled"><a class="page-link" href="#" th:text="${ticketPage.number + 1}"></a></li>
-                    <li class="page-item" th:classappend="${ticketPage.last} ? 'disabled'">
-                        <a class="page-link" th:href="@{/tickets(page=${ticketPage.number + 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Next</a>
-                    </li>
-                </ul>
-            </nav>
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <div>
+                    <span th:text="'Page ' + ${ticketPage.number + 1} + ' of ' + ${ticketPage.totalPages}"></span>
+                </div>
+                <nav>
+                    <ul class="pagination mb-0">
+                        <li class="page-item" th:classappend="${ticketPage.first} ? 'disabled'">
+                            <a class="page-link page-link-ajax" th:href="@{/tickets(page=${ticketPage.number - 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Prev</a>
+                        </li>
+                        <li class="page-item disabled"><a class="page-link" href="#" th:text="${ticketPage.number + 1}"></a></li>
+                        <li class="page-item" th:classappend="${ticketPage.last} ? 'disabled'">
+                            <a class="page-link page-link-ajax" th:href="@{/tickets(page=${ticketPage.number + 1}, size=${ticketPage.size}, q=${q}, status=${statusFilter}, stationId=${stationId}, categoryId=${categoryId})}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 
@@ -122,7 +146,7 @@
 
 <script th:inline="javascript">
     (function(){
-        const filters = ['q','status','stationId','categoryId','size'];
+    const filters = ['q','status','stationId','categoryId','orderBy','orderDir','size'];
 
         // Persist filters in localStorage and auto-submit on change/typing
         function applySavedFilters(){
@@ -131,7 +155,13 @@
                 filters.forEach(k=>{
                     const el = document.querySelector('[name="'+k+'"]');
                     if(el && saved[k]!==undefined && saved[k]!==null && saved[k]!=='' ){
-                        el.value = saved[k];
+                        if($(el).hasClass('select2')) {
+                            let val = saved[k];
+                            if(typeof val === 'string' && val.startsWith('[')) val = JSON.parse(val);
+                            $(el).val(val).trigger('change');
+                        } else {
+                            el.value = saved[k];
+                        }
                     }
                 });
             }catch(e){}
@@ -140,23 +170,55 @@
             const data = {};
             filters.forEach(k=>{
                 const el = document.querySelector('[name="'+k+'"]');
-                if(el) data[k] = el.value;
+                if(el) {
+                    if($(el).hasClass('select2')) {
+                        data[k] = $(el).val();
+                    } else {
+                        data[k] = el.value;
+                    }
+                }
             });
             localStorage.setItem('ticketFilters', JSON.stringify(data));
         }
         function autoFilter(){
             saveFilters();
             const form = document.querySelector('form[action="/tickets"]') || document.querySelector('form[method="get"]');
-            if(form){ form.requestSubmit(); }
+            if(!form) return;
+            const data = $(form).serialize();
+            $.get('/tickets/fragment', data, function(html){
+                $('#ticket-table-container').replaceWith(html);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function(){
             applySavedFilters();
+            // If any filter is set, trigger AJAX filter to load correct data
+            const saved = JSON.parse(localStorage.getItem('ticketFilters')||'{}');
+            let hasFilter = false;
+            filters.forEach(k=>{
+                if(saved[k] && saved[k] !== '') hasFilter = true;
+            });
+            if(hasFilter) {
+                setTimeout(autoFilter, 10); // let the fields update first
+            }
             const q = document.querySelector('[name="q"]');
             if(q){ q.addEventListener('keyup', function(){ clearTimeout(q._t); q._t = setTimeout(autoFilter, 300); }); }
-            ['status','stationId','categoryId','size'].forEach(k=>{
+            ['status','stationId','categoryId','orderBy','orderDir','size'].forEach(k=>{
                 const el = document.querySelector('[name="'+k+'"]');
-                if(el){ el.addEventListener('change', autoFilter); }
+                if(el){
+                    if($(el).hasClass('select2')) {
+                        $(el).on('change', autoFilter);
+                    } else {
+                        el.addEventListener('change', autoFilter);
+                    }
+                }
+            });
+
+            // Initialize select2
+            $('.select2').select2({
+                width: '100%',
+                allowClear: true,
+                placeholder: function(){ return $(this).data('placeholder') || 'Select'; }
             });
 
             // Status modal logic with AJAX
@@ -186,6 +248,15 @@
                     if(badge){ badge.textContent = newStatus; }
                     modal.hide();
                  });
+            });
+
+            // AJAX pagination
+            $(document).on('click', '.page-link-ajax', function(e){
+                e.preventDefault();
+                const url = $(this).attr('href').replace('/tickets', '/tickets/fragment');
+                $.get(url, function(html){
+                    $('#ticket-table-container').replaceWith(html);
+                });
             });
         });
     })();
